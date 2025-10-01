@@ -5,12 +5,12 @@ import (
 	"Guess/internal/proxy"
 	"Guess/internal/reactivity"
 	"Guess/internal/renderer"
-	"Guess/internal/ui/components"
 	"Guess/internal/ui/terminal"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 type MemoryMonitorReport struct {
@@ -31,15 +31,6 @@ func (m *MemoryMonitorReport) fieldNamesMemoryMonitor() []string {
 	}
 }
 
-func createWatcher(entity *proxy.ReactiveProxy, fieldName string) {
-	entity.Watch(fieldName, "Get", func(fieldName string, oldValue, newValue interface{}) {
-		reactivity.Track(entity.Original(), "Get")
-	})
-	entity.Watch(fieldName, "Set", func(fieldName string, oldValue, newValue interface{}) {
-		reactivity.Trigger(entity.Original(), "Get")
-	})
-}
-
 func NewMemoryMonitorReport() *MemoryMonitorReport {
 	return &MemoryMonitorReport{
 		AllocMB:     "0.00 MB",
@@ -50,27 +41,14 @@ func NewMemoryMonitorReport() *MemoryMonitorReport {
 	}
 }
 
-func initUI(canvas *terminal.Terminal, width, height int) *components.Box {
-	canvasWidth, canvasHeight := canvas.GetSize()
-	canvasPaddingV := 0
-	canvasPaddingH := 0
-	return components.NewBox().
-		SetBorder("normal").
-		SetWidth(canvasWidth).
-		SetHeight(canvasHeight).
-		SetPadding(canvasPaddingV, canvasPaddingH)
+func createWatcher(entity *proxy.ReactiveProxy, fieldName string) {
+	entity.Watch(fieldName, "Get", func(fieldName string, oldValue, newValue interface{}) {
+		reactivity.Track(entity.Original(), "Get")
+	})
+	entity.Watch(fieldName, "Set", func(fieldName string, oldValue, newValue interface{}) {
+		reactivity.Trigger(entity.Original(), "Get")
+	})
 }
-
-func renderUI(rootComponent *components.Box) {
-	fmt.Print(rootComponent.Draw())
-}
-
-//Отчет о потреблении памяти:
-//Текущая:            0.00 MB
-//Системная:          0.00 MB
-//Сборок мусора:      0
-//Горутин:            0
-//Объектов в куче:    0
 
 func main() {
 	mm := monitor.NewMemoryMonitor(1000, 100)
@@ -80,136 +58,187 @@ func main() {
 	terminal.Clear() // Очищаем экран
 	renderer.
 		NewDrawTask().
-		SetContent([]string{"┌─────────┐", "│ barbale │", "└─────────┘"}).
-		SetPosition(5, 3).
+		SetContent([]string{
+			"┌──────────────────────────────┐",
+			"│ Отчет о потреблении памяти:  │",
+			"└──────────────────────────────┘",
+		}).
+		SetPosition(1, 1).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
 		Draw()
-	cursor := terminal.NewCursorManager()
-	cursor.ClearRect(5, 3, 7, 6)
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌───────────────────┐",
+			"│ Текущая:          │",
+			"└───────────────────┘",
+		}).
+		SetPosition(1, 3).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌──────────┐",
+			"│ 0.00 MB  │",
+			"└──────────┘",
+		}).
+		SetPosition(21, 3).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌───────────────────┐",
+			"│ Системная:        │",
+			"└───────────────────┘",
+		}).
+		SetPosition(1, 5).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌──────────┐",
+			"│ 0.00 MB  │",
+			"└──────────┘",
+		}).
+		SetPosition(21, 5).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌───────────────────┐",
+			"│ Сборок мусора:    │",
+			"└───────────────────┘",
+		}).
+		SetPosition(1, 7).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌──────────┐",
+			"│ 0        │",
+			"└──────────┘",
+		}).
+		SetPosition(21, 7).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌───────────────────┐",
+			"│ Горутин:          │",
+			"└───────────────────┘",
+		}).
+		SetPosition(1, 9).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌──────────┐",
+			"│ 0        │",
+			"└──────────┘",
+		}).
+		SetPosition(21, 9).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌───────────────────┐",
+			"│ Объектов в куче:  │",
+			"└───────────────────┘",
+		}).
+		SetPosition(1, 11).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
+	renderer.
+		NewDrawTask().
+		SetContent([]string{
+			"┌──────────┐",
+			"│ 0        │",
+			"└──────────┘",
+		}).
+		SetPosition(21, 11).
+		SetColorSchema("yellow", "").
+		SetAutoSize().
+		Draw()
 
-	terminal.Clear() // Очищаем экран
-	// Запустить все демо
 	// Создаем дерево для шапки сайта
-	renderer.DemoMain()
-	// Или выбрать конкретный стиль:
-	//renderer.RenderNested(root)        // С рамками
-	//renderer.RenderNestedCompact(root) // HTML-стиль
-	//renderer.RenderNestedBoxes(root)   // Контейнеры
-	// Инициализация терминала (холст)
-	//canvas := terminal.NewTerminal()
-	//canvas.OnResize(func(width, height int) {
-	//	terminal.Clear()
-	//	fmt.Println("Размер был изменен! Жопа!")
-	//})
-	// Генерация root-компонента терминала
-	//terminal.Clear()
-	//rootComponent := initUI(canvas, 80, 24)
-	//rootComponent.AddChild("Отчет о потреблении памяти:")
-	// Создаю массив значений которые требуются в отчете
-	//listItems := map[string]string{
-	//	"Текущая:":         "0.00 MB",
-	//	"Системная:":       "0.00 MB",
-	//	"Сборок мусора:":   "0",
-	//	"Горутин:":         "0",
-	//	"Объектов в куче:": "0",
-	//}
-	//maxWidthKey := 0
-	//maxWidthValue := 0
-	//for key, value := range listItems {
-	//	widthKey := utf8.RuneCountInString(key)
-	//	if widthKey > maxWidthKey {
-	//		maxWidthKey = widthKey
-	//	}
-	//	widthValue := utf8.RuneCountInString(value)
-	//	if widthValue > maxWidthValue {
-	//		maxWidthValue = widthValue
-	//	}
-	//}
-
-	//for key, value := range listItems {
-	//	rootComponent.AddChild(
-	//		components.NewBox().
-	//			SetWidth(rootComponent.GetTotalWidth()).
-	//			SetLayout("row").
-	//			SetAlign("left").
-	//			SetGap(1).
-	//			AddChildren(
-	//				components.NewBox().
-	//					SetWidth(maxWidthKey).
-	//					SetAlign("left").
-	//					AddChild(key),
-	//				components.NewBox().
-	//					SetID(key).
-	//					SetWidth(maxWidthValue).
-	//					SetAlign("left").
-	//					AddChild(value),
-	//			))
-	//}
-	//renderUI(rootComponent)
-	//rootComponent.CalculateAbsolutePositions(0, 0)
+	//renderer.DemoMain()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	stopChan := make(chan struct{})
 
 	// Навешиваю прокси на отчет о потреблении памяти
-	//report := NewMemoryMonitorReport()
-	//proxyMemoryMonitorReport := proxy.NewReactiveProxy(report)
+	report := NewMemoryMonitorReport()
+	proxyMemoryMonitorReport := proxy.NewReactiveProxy(report)
 
 	// Создаем курсор для обеспечения точечного ререндера
-	//cursor := terminal.NewCursorManager()
+	cursor := terminal.NewCursorManager()
 
 	// Настраиваем наблюдатели
-	//createWatcher(proxyMemoryMonitorReport, "AllocMB")
-	//createWatcher(proxyMemoryMonitorReport, "SysMB")
-	//createWatcher(proxyMemoryMonitorReport, "NumGC")
-	//createWatcher(proxyMemoryMonitorReport, "Goroutines")
-	//createWatcher(proxyMemoryMonitorReport, "HeapObjects")
+	createWatcher(proxyMemoryMonitorReport, "AllocMB")
+	createWatcher(proxyMemoryMonitorReport, "SysMB")
+	createWatcher(proxyMemoryMonitorReport, "NumGC")
+	createWatcher(proxyMemoryMonitorReport, "Goroutines")
+	createWatcher(proxyMemoryMonitorReport, "HeapObjects")
 
-	//reactivity.WatchEffect(func() {
-	//	idMaps := map[string]string{
-	//		"AllocMB":     "Текущая:",
-	//		"SysMB":       "Системная:",
-	//		"NumGC":       "Сборок мусора:",
-	//		"Goroutines":  "Горутин:",
-	//		"HeapObjects": "Объектов в куче:",
-	//	}
-	//	cursor.ShowCursor()
-	//	for _, fieldName := range report.fieldNamesMemoryMonitor() {
-	//		value := proxyMemoryMonitorReport.Get(fieldName)
-	//		node := rootComponent.FindByID(idMaps[fieldName])
-	//		if node != nil {
-	//			col, row := node.GetAbsolutePosition()
-	//			cursor.WriteAt(row, col, fmt.Sprintf("%v", value))
-	//		}
-	//	}
-	//	cursor.HideCursor()
-	//})
+	reactivity.WatchEffect(func() {
+		posMaps := map[string]renderer.Position{
+			"AllocMB":     {X: 23, Y: 4},
+			"SysMB":       {X: 23, Y: 6},
+			"NumGC":       {X: 23, Y: 8},
+			"Goroutines":  {X: 23, Y: 10},
+			"HeapObjects": {X: 23, Y: 12},
+		}
+		cursor.ShowCursor()
+		for _, fieldName := range report.fieldNamesMemoryMonitor() {
+			value := proxyMemoryMonitorReport.Get(fieldName)
+			pos := posMaps[fieldName]
+			cursor.WriteAt(pos.X, pos.Y, fmt.Sprintf("%v", value))
+		}
+		cursor.HideCursor()
+	})
 
-	//go func() {
-	//	ticker := time.NewTicker(5 * time.Second)
-	//	defer ticker.Stop()
-	//
-	//	for {
-	//		select {
-	//		case <-ticker.C:
-	//			a, s, n, g, h := mm.PrintCurrent()
-	//			values := map[string]interface{}{
-	//				"AllocMB":     a,
-	//				"SysMB":       s,
-	//				"NumGC":       n,
-	//				"Goroutines":  g,
-	//				"HeapObjects": h,
-	//			}
-	//			for key, value := range values {
-	//				proxyMemoryMonitorReport.Set(key, value)
-	//			}
-	//		case <-stopChan:
-	//			return
-	//		}
-	//	}
-	//}()
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				a, s, n, g, h := mm.PrintCurrent()
+				values := map[string]interface{}{
+					"AllocMB":     a,
+					"SysMB":       s,
+					"NumGC":       n,
+					"Goroutines":  g,
+					"HeapObjects": h,
+				}
+				for key, value := range values {
+					proxyMemoryMonitorReport.Set(key, value)
+				}
+			case <-stopChan:
+				return
+			}
+		}
+	}()
 
 	<-sigChan
 	close(stopChan)
