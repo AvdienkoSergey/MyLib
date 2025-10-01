@@ -3,6 +3,7 @@ package renderer
 import (
 	"Guess/internal/ui/terminal"
 	"fmt"
+	"strings"
 
 	"github.com/mattn/go-runewidth"
 )
@@ -99,8 +100,29 @@ func (t *DrawTask) Draw() {
 
 	for i, str := range t.Content {
 		y := t.Position.Y + i
-		x := t.Position.X
-		cursor.WriteAt(x, y, str)
+		runes := []rune(str)
+
+		var token strings.Builder
+		tokenStartX := -1
+
+		for ii, r := range runes {
+			if r == ' ' {
+				if token.Len() > 0 {
+					cursor.WriteAt(t.Position.X+tokenStartX, y, token.String())
+					token.Reset()
+					tokenStartX = -1
+				}
+			} else {
+				if tokenStartX == -1 {
+					tokenStartX = ii
+				}
+				token.WriteRune(r)
+			}
+
+			if token.Len() > 0 {
+				cursor.WriteAt(t.Position.X+tokenStartX, y, token.String())
+			}
+		}
 	}
 
 	// Сброс цветов
