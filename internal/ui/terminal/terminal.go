@@ -4,31 +4,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"golang.org/x/term"
 )
 
-type ResizeCallback func(width, height int)
-
-// resizeWatcher - внутренняя структура для отслеживания изменения размера
-type resizeWatcher struct {
-	sigwinch chan os.Signal
-	stopChan chan struct{}
-	terminal *Terminal
-}
-
 // Terminal - современная реализация работы с терминалом
 type Terminal struct {
-	width          int
-	height         int
-	cached         bool
-	resizeWatcher  *resizeWatcher
-	resizeCallback ResizeCallback
+	width  int
+	height int
+	cached bool
 }
 
 // NewTerminal создает новый объект для работы с терминалом
@@ -153,61 +140,5 @@ func Clear() {
 
 	default:
 		fmt.Print("\033[2J\033[H")
-	}
-}
-
-// OnResize устанавливает callback функцию для обработки изменения размера
-func (t *Terminal) OnResize(callback ResizeCallback) {
-	t.resizeCallback = callback
-}
-
-// StartResizeWatcher запускает отслеживание изменения размера терминала
-func (t *Terminal) StartResizeWatcher() {
-	if t.resizeWatcher != nil {
-		return // уже запущен
-	}
-
-	t.resizeWatcher = &resizeWatcher{
-		sigwinch: make(chan os.Signal, 1),
-		stopChan: make(chan struct{}),
-		terminal: t,
-	}
-
-	signal.Notify(t.resizeWatcher.sigwinch, syscall.SIGWINCH)
-
-	go func() {
-		for {
-			select {
-			case <-t.resizeWatcher.sigwinch:
-				t.handleResize()
-			case <-t.resizeWatcher.stopChan:
-				return
-			}
-		}
-	}()
-}
-
-// StopResizeWatcher останавливает отслеживание изменения размера
-func (t *Terminal) StopResizeWatcher() {
-	if t.resizeWatcher == nil {
-		return
-	}
-
-	signal.Stop(t.resizeWatcher.sigwinch)
-	close(t.resizeWatcher.stopChan)
-	t.resizeWatcher = nil
-}
-
-// handleResize обрабатывает изменение размера терминала
-func (t *Terminal) handleResize() {
-	// Обновить размеры
-	t.Refresh()
-
-	// Очистить экран
-	Clear()
-
-	// Вызвать callback если установлен
-	if t.resizeCallback != nil {
-		t.resizeCallback(t.width, t.height)
 	}
 }
