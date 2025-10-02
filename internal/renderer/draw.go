@@ -130,6 +130,11 @@ func (t *DrawTask) Draw() {
 	fmt.Print("\033[0m")
 }
 
+func (t *DrawTask) MakeClickable(id string, onClick func()) *DrawTask {
+	terminal.ClickableAreaRegister(t.Position.X, t.Position.Y, t.Width, t.Height, id, onClick)
+	return t
+}
+
 // DrawWithParallelPreparing
 func (t *DrawTask) DrawWithParallelPreparing() {
 	cursor := terminal.NewCursorManager()
