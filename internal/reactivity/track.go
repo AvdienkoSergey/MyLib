@@ -45,3 +45,20 @@ func Trigger(target interface{}, key string) {
 
 	dep.trigger()
 }
+
+func GetTargetMapStats() (targets int, totalDeps int, totalEffects int) {
+	targets = len(targetMap)
+	effectsMap := make(map[int]bool)
+	
+	for _, depsMap := range targetMap {
+		totalDeps += len(depsMap)
+		for _, dep := range depsMap {
+			for _, effect := range dep.Subscribers {
+				effectsMap[effect.ID] = true
+			}
+		}
+	}
+	
+	totalEffects = len(effectsMap)
+	return
+}

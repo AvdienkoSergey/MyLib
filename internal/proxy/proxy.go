@@ -24,6 +24,8 @@ type ChangeRecord struct {
 	Time     string
 }
 
+const MaxHistorySize = 2
+
 // NewReactiveProxy Конструктор
 func NewReactiveProxy(target interface{}) *ReactiveProxy {
 	return &ReactiveProxy{
@@ -63,6 +65,12 @@ func (p *ReactiveProxy) notify(fieldName string, key string, oldValue, newValue 
 			NewValue: newValue,
 			Time:     fmt.Sprintf("%d", len(p.history)+1),
 		})
+
+		if len(p.history) > MaxHistorySize {
+			// Удаляем старые записи (FIFO)
+			copy(p.history, p.history[1:])
+			p.history = p.history[:MaxHistorySize]
+		}
 	}
 }
 

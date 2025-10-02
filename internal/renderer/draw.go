@@ -89,6 +89,7 @@ func (t *DrawTask) SetColorSchema(fg, bg string) *DrawTask {
 	return t
 }
 
+// Draw - синхронная отрисовка (последовательная дефолтная)
 func (t *DrawTask) Draw() {
 	cursor := terminal.NewCursorManager()
 	cursor.HideCursor()
@@ -126,6 +127,26 @@ func (t *DrawTask) Draw() {
 	}
 
 	// Сброс цветов
+	fmt.Print("\033[0m")
+}
+
+// DrawWithParallelPreparing
+func (t *DrawTask) DrawWithParallelPreparing() {
+	cursor := terminal.NewCursorManager()
+	cursor.HideCursor()
+
+	if t.ColorSchema.FG != "" || t.ColorSchema.BG != "" {
+		applyColors(t.ColorSchema)
+	}
+
+	// Параллельная подготовка данных
+	commands := GetGlobalProcessor().ProcessTask(t)
+
+	// Последовательная отрисовка
+	for _, cmd := range commands {
+		cursor.WriteAt(cmd.X, cmd.Y, cmd.Text)
+	}
+
 	fmt.Print("\033[0m")
 }
 

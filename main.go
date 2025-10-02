@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"strconv"
 )
 
 type MemoryMonitorReport struct {
@@ -66,7 +67,7 @@ func main() {
 		SetPosition(1, 1).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -77,7 +78,7 @@ func main() {
 		SetPosition(1, 3).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -88,7 +89,7 @@ func main() {
 		SetPosition(21, 3).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -99,7 +100,7 @@ func main() {
 		SetPosition(1, 5).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -110,7 +111,7 @@ func main() {
 		SetPosition(21, 5).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -121,7 +122,7 @@ func main() {
 		SetPosition(1, 7).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -132,7 +133,7 @@ func main() {
 		SetPosition(21, 7).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -143,7 +144,7 @@ func main() {
 		SetPosition(1, 9).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -154,7 +155,7 @@ func main() {
 		SetPosition(21, 9).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -165,7 +166,7 @@ func main() {
 		SetPosition(1, 11).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 	renderer.
 		NewDrawTask().
 		SetContent([]string{
@@ -176,7 +177,7 @@ func main() {
 		SetPosition(21, 11).
 		SetColorSchema("yellow", "").
 		SetAutoSize().
-		Draw()
+		DrawWithParallelPreparing()
 
 	// Создаем дерево для шапки сайта
 	//renderer.DemoMain()
@@ -199,14 +200,15 @@ func main() {
 	createWatcher(proxyMemoryMonitorReport, "Goroutines")
 	createWatcher(proxyMemoryMonitorReport, "HeapObjects")
 
+	posMaps := map[string]renderer.Position{
+		"AllocMB":     {X: 23, Y: 4},
+		"SysMB":       {X: 23, Y: 6},
+		"NumGC":       {X: 23, Y: 8},
+		"Goroutines":  {X: 23, Y: 10},
+		"HeapObjects": {X: 23, Y: 12},
+	}
+
 	reactivity.WatchEffect(func() {
-		posMaps := map[string]renderer.Position{
-			"AllocMB":     {X: 23, Y: 4},
-			"SysMB":       {X: 23, Y: 6},
-			"NumGC":       {X: 23, Y: 8},
-			"Goroutines":  {X: 23, Y: 10},
-			"HeapObjects": {X: 23, Y: 12},
-		}
 		cursor.ShowCursor()
 		for _, fieldName := range report.fieldNamesMemoryMonitor() {
 			value := proxyMemoryMonitorReport.Get(fieldName)
@@ -216,24 +218,50 @@ func main() {
 		cursor.HideCursor()
 	})
 
+	values := make(map[string]interface{}, 5)
+	count := 0
+	const SECONDS = 1
+	startingHeapSize := 0
+
 	go func() {
-		ticker := time.NewTicker(1 * time.Second)
+		ticker := time.NewTicker(SECONDS * time.Second)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
 				a, s, n, g, h := mm.PrintCurrent()
-				values := map[string]interface{}{
-					"AllocMB":     a,
-					"SysMB":       s,
-					"NumGC":       n,
-					"Goroutines":  g,
-					"HeapObjects": h,
-				}
+				values["AllocMB"] = a
+				values["SysMB"] = s
+				values["NumGC"] = n
+				values["Goroutines"] = g
+				values["HeapObjects"] = h
 				for key, value := range values {
 					proxyMemoryMonitorReport.Set(key, value)
 				}
+
+				targets, deps, effects := reactivity.GetTargetMapStats()
+				cursor.WriteAt(1, 15, fmt.Sprintf("[DEBUG] Reactivity: %d targets, %d deps, %d effects", 
+				targets, deps, effects))
+
+				count += SECONDS
+				cursor.WriteAt(1, 17, fmt.Sprintf("[TIME] Seconds passed: %d", count))
+
+				currentHeapSize := 0
+				num, err := strconv.ParseInt(h, 10, 64)
+				if err == nil {  // ← Если НЕТ ошибки
+					currentHeapSize = int(num)  // ← Приводим int64 к int
+				}
+
+				if startingHeapSize == 0 {
+					startingHeapSize = currentHeapSize
+				}
+
+				deviationHeapSize := currentHeapSize - startingHeapSize
+				cursor.ClearLine(19)
+				cursor.WriteAt(1, 19, fmt.Sprintf("[HEAP SIZE] Deviation: (start: %d, current: %d) %d", 
+					startingHeapSize, currentHeapSize, deviationHeapSize))
+
 			case <-stopChan:
 				return
 			}
